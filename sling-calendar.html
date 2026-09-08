@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sling Calendar 💦</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1a1626; --panel:#241f33; --line:#3a3350; --ink:#f4f0ff; --muted:#a79fbf;
+    --r:#ff4d4d; --o:#ff9a3c; --y:#ffd93c; --g:#43d97a; --b:#3ca9ff; --i:#6c63ff; --v:#c56cff;
+    --slot:36px; --hourLabel:44px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Nunito",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  header{padding:22px 16px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:32px;font-weight:900;letter-spacing:-.02em;line-height:1}
+  h1 span{background:linear-gradient(90deg,var(--r),var(--o),var(--y),var(--g),var(--b),var(--i),var(--v));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .who{font-size:14px;color:var(--muted)}
+  .who button{background:none;border:0;color:var(--ink);font:inherit;font-weight:800;text-decoration:underline;cursor:pointer;padding:0}
+  .hint{padding:0 16px 10px;font-size:14px;color:var(--muted)}
+  .tabs{display:flex;gap:6px;padding:0 16px 12px}
+  .tabs button{flex:1;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:10px 6px;border-radius:12px;cursor:pointer}
+  .tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .tabs button:focus-visible,.slot:focus-visible,.block button:focus-visible,.pick button:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+  .cal{display:grid;grid-template-columns:var(--hourLabel) repeat(3,1fr);gap:0 8px;padding:0 16px 40px}
+  .dayhead{position:sticky;top:0;z-index:3;background:var(--bg);padding:8px 0 6px;text-align:center;font-weight:800;font-size:15px;border-bottom:2px solid var(--line)}
+  .hours{position:relative;height:calc(var(--slot) * 48)}
+  .hours div{position:absolute;right:6px;transform:translateY(-50%);font-size:12px;color:var(--muted);font-weight:600}
+  .day{position:relative;height:calc(var(--slot) * 48);background:var(--panel);border-radius:10px;overflow:hidden}
+  .slot{position:absolute;left:0;right:0;height:var(--slot);border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;padding:0}
+  .slot:nth-child(odd){border-top-color:rgba(255,255,255,.04)}
+  .slot:hover{background:rgba(255,255,255,.06)}
+  .block{position:absolute;left:4px;right:4px;border-radius:8px;padding:6px 8px;color:#160f1f;font-weight:800;font-size:13px;line-height:1.15;overflow:hidden;z-index:2;display:flex;flex-direction:column;gap:2px;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .block small{font-weight:600;font-size:11px;opacity:.75}
+  .block button{align-self:flex-start;margin-top:auto;border:0;background:rgba(22,15,31,.18);color:#160f1f;font:inherit;font-weight:800;font-size:11px;padding:3px 8px;border-radius:999px;cursor:pointer}
+  .block button:hover{background:rgba(22,15,31,.32)}
+  .now{position:absolute;left:0;right:0;height:2px;background:#fff;z-index:2;pointer-events:none;opacity:.7}
+  /* picker */
+  .veil{position:fixed;inset:0;background:rgba(10,7,18,.7);display:none;align-items:flex-end;justify-content:center;z-index:10}
+  .veil[open]{display:flex}
+  .sheet{background:var(--panel);width:100%;max-width:440px;border-radius:20px 20px 0 0;padding:20px 20px 28px;border-top:1px solid var(--line)}
+  .sheet h2{margin:0 0 4px;font-size:20px;font-weight:900}
+  .sheet p{margin:0 0 16px;color:var(--muted);font-size:14px}
+  .pick{display:flex;gap:8px;margin-bottom:12px}
+  .pick button{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:800;font-size:16px;padding:14px 0;border-radius:12px;cursor:pointer}
+  .pick button:disabled{opacity:.35;cursor:not-allowed}
+  .pick button:hover:not(:disabled){border-color:var(--ink)}
+  .sheet input{width:100%;font:inherit;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);margin-bottom:12px}
+  .row{display:flex;gap:8px}
+  .row button{flex:1;font:inherit;font-weight:800;font-size:16px;padding:14px 0;border-radius:12px;cursor:pointer;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+  .row button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:800;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+  .toast.show{opacity:1}
+  @media (max-width:640px){
+    .cal{grid-template-columns:var(--hourLabel) 1fr}
+    .day,.dayhead{display:none}
+    .day.active,.dayhead.active{display:block}
+    h1{font-size:28px}
+  }
+  @media (min-width:641px){ .tabs{display:none} }
+  @media (prefers-reduced-motion:reduce){ .toast{transition:none} }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Sling Calendar</span> 💦</h1>
+  <div class="who">Booking as <button id="whoBtn" type="button">…</button></div>
+</header>
+<div class="hint" id="hint">Loading the calendar…</div>
+<div class="tabs" role="tablist" id="tabs"></div>
+<div class="cal" id="cal"></div>
+
+<div class="veil" id="veil">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <h2 id="sheetTitle">Book a slot</h2>
+    <p id="sheetSub"></p>
+    <div class="pick" id="pick">
+      <button type="button" data-min="30">30 min</button>
+      <button type="button" data-min="45">45 min</button>
+      <button type="button" data-min="60">60 min</button>
+    </div>
+    <div class="row">
+      <button type="button" id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="veil" id="nameVeil">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="nameTitle">
+    <h2 id="nameTitle">Who's booking?</h2>
+    <p>Your name shows on the blocks you book.</p>
+    <input id="nameInput" placeholder="Your name" maxlength="24" autocomplete="off">
+    <div class="row"><button type="button" class="primary" id="nameSave">Save name</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+(async () => {
+  const DAYS = [
+    { key:"2026-09-08", label:"Tue Sept 8" },
+    { key:"2026-09-09", label:"Wed Sept 9" },
+    { key:"2026-09-10", label:"Thu Sept 10" },
+  ];
+  const RAINBOW = ["--r","--o","--y","--g","--b","--i","--v"];
+  const SHARED_KEY = "sling-reservations";
+  const ME_KEY = "sling-identity";
+
+  const $ = id => document.getElementById(id);
+  const cal = $("cal"), tabs = $("tabs"), hint = $("hint"), veil = $("veil"), toast = $("toast");
+  let me = null, reservations = [], activeDay = DAYS[0].key, pending = null;
+
+  // ---------- Firebase (paste your config below) ----------
+  const firebaseConfig = {
+    apiKey: "PASTE_ME",
+    databaseURL: "https://PASTE_ME.firebaseio.com",
+    projectId: "PASTE_ME",
+  };
+  firebase.initializeApp(firebaseConfig);
+  const ref = firebase.database().ref("reservations");
+  const NAME_KEY = "sling-name";
+
+  function loadMe(){ try{ const n=localStorage.getItem(NAME_KEY); return n?{name:n}:null; }catch{ return null; } }
+  function saveMe(name){ me={name}; try{ localStorage.setItem(NAME_KEY,name); }catch{} $("whoBtn").textContent=name; }
+  // one child per reservation, so two housemates booking at once never overwrite each other
+  async function addReservation(r){ const k = ref.push().key; await ref.child(k).set({...r, id:k}); }
+  async function deleteReservation(id){ await ref.child(id).remove(); }
+
+  // ---------- time helpers ----------
+  const fmt = m => { const h = Math.floor(m/60), mm = m%60; const ap = h<12||h===24 ? "am":"pm"; const hh = ((h+11)%12)+1; return `${hh}:${String(mm).padStart(2,"0")}${ap}`; };
+  const overlaps = (day,start,end) => reservations.some(r => r.day===day && start < r.end && end > r.start);
+
+  // ---------- render ----------
+  function render(){
+    cal.innerHTML = "";
+    cal.appendChild(Object.assign(document.createElement("div"),{className:"dayhead active"})); // corner
+    DAYS.forEach(d => {
+      const h = document.createElement("div");
+      h.className = "dayhead" + (d.key===activeDay?" active":"");
+      h.textContent = d.label; cal.appendChild(h);
+    });
+    const hours = document.createElement("div"); hours.className="hours";
+    for(let h=0;h<=24;h++){ const l=document.createElement("div"); l.style.top=`calc(var(--slot)*${h*2})`; l.textContent = h===0||h===24 ? "12am" : h===12 ? "12pm" : (h%12)+(h<12?"am":"pm"); hours.appendChild(l); }
+    cal.appendChild(hours);
+
+    // rainbow order: all blocks sorted by day then start
+    const ordered = [...reservations].sort((a,b)=> a.day===b.day ? a.start-b.start : a.day<b.day?-1:1);
+    const colorOf = new Map(ordered.map((r,i)=>[r.id, RAINBOW[i%7]]));
+
+    DAYS.forEach(d => {
+      const col = document.createElement("div"); col.className = "day" + (d.key===activeDay?" active":"");
+      for(let s=0;s<48;s++){
+        const b = document.createElement("button"); b.type="button"; b.className="slot";
+        b.style.top=`calc(var(--slot)*${s})`; b.setAttribute("aria-label",`${d.label} ${fmt(s*30)} open`);
+        b.onclick = () => openPicker(d, s*30); col.appendChild(b);
+      }
+      reservations.filter(r=>r.day===d.key).forEach(r => {
+        const el = document.createElement("div"); el.className="block";
+        el.style.top=`calc(var(--slot)*${r.start/30})`; el.style.height=`calc(var(--slot)*${(r.end-r.start)/30} - 3px)`;
+        el.style.background=`var(${colorOf.get(r.id)})`;
+        el.innerHTML = `<div>${escape(r.name)}</div><small>${fmt(r.start)}–${fmt(r.end)}</small>`;
+        const x=document.createElement("button"); x.type="button"; x.textContent="Remove"; x.onclick=()=>remove(r); el.appendChild(x);
+        col.appendChild(el);
+      });
+      const now = new Date();
+      if(now.toISOString().slice(0,10)===d.key || localKey(now)===d.key){
+        const line=document.createElement("div"); line.className="now"; line.style.top=`calc(var(--slot)*${(now.getHours()*60+now.getMinutes())/30})`; col.appendChild(line);
+      }
+      cal.appendChild(col);
+    });
+
+    tabs.innerHTML="";
+    DAYS.forEach(d=>{ const t=document.createElement("button"); t.type="button"; t.role="tab"; t.textContent=d.label.replace("Sept ","");
+      t.setAttribute("aria-selected", d.key===activeDay); t.onclick=()=>{activeDay=d.key;render();}; tabs.appendChild(t); });
+    hint.textContent = reservations.length ? "Tap an open time to book. You can remove your own blocks." : "Nothing booked yet. Tap an open time to claim it.";
+  }
+  const localKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const escape = s => s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  // ---------- booking ----------
+  function openPicker(d,start){
+    if(!me){ $("nameVeil").setAttribute("open",""); $("nameInput").focus(); return; }
+    pending = {day:d.key,start};
+    $("sheetSub").textContent = `${d.label}, starting ${fmt(start)}`;
+    [...$("pick").children].forEach(b=>{ const min=+b.dataset.min; b.disabled = start+min>1440 || overlaps(d.key,start,start+min); });
+    veil.setAttribute("open",""); $("pick").querySelector("button:not(:disabled)")?.focus();
+  }
+  async function book(min){
+    const {day,start} = pending, end = start+min;
+    if(overlaps(day,start,end)){ closePicker(); return say("Someone just took that time"); }
+    try{ await addReservation({day,start,end,name:me.name}); say(`Booked ${fmt(start)}–${fmt(end)}`); }
+    catch(e){ console.error(e); say("Couldn't save — check your connection"); }
+    closePicker();
+  }
+  async function remove(r){
+    if(!confirm(`Remove ${r.name}'s ${fmt(r.start)}–${fmt(r.end)} block?`)) return;
+    try{ await deleteReservation(r.id); say("Removed"); }
+    catch(e){ console.error(e); say("Couldn't remove — check your connection"); }
+  }
+  function closePicker(){ veil.removeAttribute("open"); pending=null; }
+  function say(t){ toast.textContent=t; toast.classList.add("show"); clearTimeout(say.t); say.t=setTimeout(()=>toast.classList.remove("show"),2200); }
+
+  $("pick").onclick = e => { const b=e.target.closest("button[data-min]"); if(b && !b.disabled) book(+b.dataset.min); };
+  $("cancelBtn").onclick = closePicker;
+  veil.onclick = e => { if(e.target===veil) closePicker(); };
+  $("nameSave").onclick = async () => { const n=$("nameInput").value.trim(); if(!n) return $("nameInput").focus(); saveMe(n); $("nameVeil").removeAttribute("open"); render(); };
+  $("nameInput").onkeydown = e => { if(e.key==="Enter") $("nameSave").click(); };
+  $("whoBtn").onclick = () => { $("nameInput").value = me?.name||""; $("nameVeil").setAttribute("open",""); $("nameInput").focus(); };
+  document.addEventListener("keydown", e => { if(e.key==="Escape") closePicker(); });
+
+  // ---------- init ----------
+  me = loadMe();
+  $("whoBtn").textContent = me ? me.name : "set your name";
+  const today = localKey(new Date()); if(DAYS.some(d=>d.key===today)) activeDay = today;
+  render();
+  if(!me) { $("nameVeil").setAttribute("open",""); $("nameInput").focus(); }
+  // live sync: every phone re-renders the moment anyone books or removes
+  ref.on("value", snap => { const v = snap.val()||{}; reservations = Object.values(v); if(!veil.hasAttribute("open")) render(); },
+    err => { console.error(err); hint.textContent = "Can't reach the database — check the Firebase config and rules."; });
+})();
+</script>
+</body>
+</html>
